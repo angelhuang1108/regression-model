@@ -2,6 +2,24 @@
 
 `sklearn.ensemble.HistGradientBoostingRegressor` predicting trial duration (days) for **COMPLETED** trials only. Preprocessing (encoding, scaling) is unchanged from the prior Ridge pipeline; the booster captures non-linear effects and interactions in the feature space.
 
+## Filtering
+
+Data is filtered in two stages: preprocessing ([3_preprocessing/preprocess.py](3_preprocessing/preprocess.py)) and at training time ([4_regression/train_regression.py](4_regression/train_regression.py)).
+
+### Preprocessing filters (applied to all studies)
+
+1. **Exclude WITHDRAWN trials** — withdrawn trials never ran, so they have no meaningful duration.
+2. **Study type = INTERVENTIONAL** — observational and expanded-access studies have different duration dynamics and are out of scope.
+3. **Phase in {PHASE1, PHASE2, PHASE3, PHASE1/PHASE2, PHASE2/PHASE3}** — focuses on standard clinical development phases; early-phase (PHASE0) and non-phased trials are excluded.
+4. **At least one industry sponsor** — the model targets industry-sponsored trials; academic/government-only trials follow different timelines.
+5. **Both `start_date` and `primary_completion_date` must be non-null** — rows missing either date cannot produce a duration target.
+6. **Dates in range 1980–2027** — removes clearly erroneous entries (far-future or pre-modern dates) that would distort the target distribution.
+7. **Duration ≥ 0 days** — drops the small number of records where primary completion precedes the start date, which indicates a data entry error.
+
+### Training-time filter
+
+8. **`overall_status = COMPLETED`** — the model predicts actual trial duration, which is only observable for completed trials. Active, terminated, or suspended trials are excluded from training and evaluation.
+
 ## Target
 - `duration_days` — time from start to primary completion
 
