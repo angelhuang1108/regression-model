@@ -5,9 +5,11 @@ and run regression to predict duration_days.
 Target is log1p-transformed inside TransformedTargetRegressor; predictions are
 inverted to days for evaluation. Restricted to COMPLETED trials only.
 
-Trains one HistGradientBoostingRegressor per phase label: PHASE1, PHASE1/PHASE2,
-PHASE2, PHASE2/PHASE3, PHASE3. No StandardScaler; numeric NaNs are kept for HGBR.
-No phase one-hot inside each cohort (phase is constant per model).
+Trains HistGradientBoostingRegressor models on COMPLETED trials:
+  - Dedicated: PHASE1, PHASE2, PHASE3 (each fit on that phase only).
+  - Early joint: PHASE1 + PHASE1/PHASE2 + PHASE2; used to score PHASE1/PHASE2 trials.
+  - Late joint: PHASE2 + PHASE2/PHASE3 + PHASE3; used to score PHASE2/PHASE3 trials.
+No StandardScaler; numeric NaNs are kept for HGBR. No phase one-hot inside each cohort.
 """
 import re
 import logging
@@ -116,8 +118,14 @@ KEPT_DESIGN_OUTCOMES = [
 
 RAW_DATA = PROJECT_ROOT / "raw_data"
 
-# One model per phase label (including combined-phase cohorts)
-PHASES_WITH_DEDICATED_MODELS = (
+# Single-phase models (enough samples each); mixed labels use joint pools below
+PHASE_SINGLE_MODELS = ("PHASE1", "PHASE2", "PHASE3")
+
+EARLY_JOINT_PHASES = frozenset({"PHASE1", "PHASE1/PHASE2", "PHASE2"})
+LATE_JOINT_PHASES = frozenset({"PHASE2", "PHASE2/PHASE3", "PHASE3"})
+
+# Row order for summary table / reporting
+PHASE_REPORT_ORDER = (
     "PHASE1",
     "PHASE1/PHASE2",
     "PHASE2",
@@ -638,6 +646,76 @@ def _eval_split(name: str, model: TransformedTargetRegressor, X: np.ndarray, y: 
     }
 
 
+def _joint_test_metrics_by_phase(
+    model: TransformedTargetRegressor,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    ph_test: np.ndarray,
+    phase_labels: tuple[str, ...],
+) -> dict[str, dict]:
+    """Test RMSE/MAE/R² per phase label on the joint model's test fold (need n>=2 for R²)."""
+    out: dict[str, dict] = {}
+    for ph in phase_labels:
+        mask = ph_test == ph
+        y_s = y_test[mask]
+        X_s = X_test[mask]
+        if len(y_s) < 2:
+            continue
+        ev = _eval_split("test", model, X_s, y_s)
+        out[ph] = {
+            "n": int(len(y_s)),
+            "r2": ev["r2"],
+            "rmse": ev["rmse"],
+            "mae": ev["mae"],
+        }
+    return out
+
+
+def _new_regressor() -> TransformedTargetRegressor:
+    return TransformedTargetRegressor(
+        regressor=HistGradientBoostingRegressor(max_iter=200, random_state=42),
+        func=np.log1p,
+        inverse_func=np.expm1,
+    )
+
+
+def _train_val_test_split(
+    X: np.ndarray, y: np.ndarray, random_state: int = 42
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=0.4, random_state=random_state
+    )
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.5, random_state=random_state
+    )
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+
+def _train_val_test_split_with_phase(
+    X: np.ndarray,
+    y: np.ndarray,
+    phases: np.ndarray,
+    random_state: int = 42,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+]:
+    X_train, X_temp, y_train, y_temp, ph_train, ph_temp = train_test_split(
+        X, y, phases, test_size=0.4, random_state=random_state
+    )
+    X_val, X_test, y_val, y_test, ph_val, ph_test = train_test_split(
+        X_temp, y_temp, ph_temp, test_size=0.5, random_state=random_state
+    )
+    return X_train, X_val, X_test, y_train, y_val, y_test, ph_train, ph_val, ph_test
+
+
 def main() -> None:
     df = load_and_join(
         eligibility_columns=KEPT_ELIGIBILITY,
@@ -647,17 +725,20 @@ def main() -> None:
         design_outcomes_columns=KEPT_DESIGN_OUTCOMES,
     )
 
-    completed = df[df["overall_status"] == "COMPLETED"]
-    phase_counts = completed["phase"].astype(str).value_counts()
+    completed = df[df["overall_status"] == "COMPLETED"].copy()
+    completed["phase"] = completed["phase"].astype(str)
+    phase_counts = completed["phase"].value_counts()
+
     lines: list[str] = []
     lines.append(
-        "Per-phase HistGradientBoostingRegressor models: PHASE1, PHASE1/PHASE2, "
-        "PHASE2, PHASE2/PHASE3, PHASE3."
+        "HistGradientBoostingRegressor: dedicated models for PHASE1, PHASE2, PHASE3; "
+        "early joint (PHASE1+PHASE1/PHASE2+PHASE2) for PHASE1/PHASE2 rows; "
+        "late joint (PHASE2+PHASE2/PHASE3+PHASE3) for PHASE2/PHASE3 rows."
     )
-    lines.append("No StandardScaler; numeric NaNs preserved for HGBR. No phase one-hot inside each model.")
+    lines.append("No StandardScaler; numeric NaNs preserved for HGBR. No phase one-hot inside each cohort.")
     lines.append("")
     lines.append("Trial counts in loaded cohort (COMPLETED, by phase label):")
-    for ph in PHASES_WITH_DEDICATED_MODELS:
+    for ph in PHASE_REPORT_ORDER:
         n = int(phase_counts.get(ph, 0))
         lines.append(f"  {ph}: n={n:,}")
     lines.append("")
@@ -672,18 +753,21 @@ def main() -> None:
         encode_phase=False,
     )
 
-    test_r2_by_phase: list[tuple[str, float | None, int]] = []
+    # phase_label -> (test_n, test_r2, model_description)
+    summary: dict[str, tuple[int, float, str]] = {}
+    early_by_phase: dict[str, dict] = {}
+    late_by_phase: dict[str, dict] = {}
 
-    for phase in PHASES_WITH_DEDICATED_MODELS:
-        df_p = df[df["phase"].astype(str) == phase].copy()
+    # --- Dedicated single-phase models (PHASE1, PHASE2, PHASE3) ---
+    for phase in PHASE_SINGLE_MODELS:
+        df_p = completed[completed["phase"] == phase].copy()
         n_phase = len(df_p)
         lines.append("=" * 50)
-        lines.append(f"MODEL {phase}  (n={n_phase:,} rows before dropna on target)")
+        lines.append(f"MODEL dedicated {phase}  (n={n_phase:,} rows before dropna on target)")
         lines.append("=" * 50)
 
         if n_phase < 30:
             lines.append("  Skipped: not enough rows for a stable train/val/test split.")
-            test_r2_by_phase.append((phase, None, n_phase))
             lines.append("")
             continue
 
@@ -693,26 +777,15 @@ def main() -> None:
 
         if n_xy < 30:
             lines.append("  Skipped: too few rows with duration_days after preprocessing.")
-            test_r2_by_phase.append((phase, None, n_xy))
             lines.append("")
             continue
 
-        X_train, X_temp, y_train, y_temp = train_test_split(
-            X, y, test_size=0.4, random_state=42
-        )
-        X_val, X_test, y_val, y_test = train_test_split(
-            X_temp, y_temp, test_size=0.5, random_state=42
-        )
-
+        X_train, X_val, X_test, y_train, y_val, y_test = _train_val_test_split(X, y)
         lines.append(
             f"  Split: train={len(y_train):,}  val={len(y_val):,}  test={len(y_test):,}"
         )
 
-        model = TransformedTargetRegressor(
-            regressor=HistGradientBoostingRegressor(max_iter=200, random_state=42),
-            func=np.log1p,
-            inverse_func=np.expm1,
-        )
+        model = _new_regressor()
         model.fit(X_train, y_train)
 
         for split_name, X_s, y_s in (
@@ -725,18 +798,205 @@ def main() -> None:
                 f"  {m['set']:5}: RMSE={m['rmse']:,.0f} days  MAE={m['mae']:,.0f} days  R²={m['r2']:.4f}"
             )
 
-        test_r2 = _eval_split("test", model, X_test, y_test)["r2"]
-        test_r2_by_phase.append((phase, test_r2, len(y_test)))
+        test_m = _eval_split("test", model, X_test, y_test)
+        summary[phase] = (len(y_test), test_m["r2"], f"dedicated {phase}-only")
         lines.append("")
 
+    # --- Early joint: train on PHASE1 + PHASE1/PHASE2 + PHASE2; report subset PHASE1/PHASE2 on test ---
+    df_early = completed[completed["phase"].isin(EARLY_JOINT_PHASES)].copy()
     lines.append("=" * 50)
-    lines.append("SUMMARY — TEST SET R² (dedicated model per phase)")
+    lines.append(
+        f"MODEL early joint  (PHASE1 + PHASE1/PHASE2 + PHASE2; n={len(df_early):,} before dropna)"
+    )
     lines.append("=" * 50)
-    for ph, r2, n_test in test_r2_by_phase:
-        if r2 is None:
-            lines.append(f"  {ph}: R²=n/a  (n_test or cohort too small)")
+    if len(df_early) < 30:
+        lines.append("  Skipped: cohort too small.")
+        lines.append("")
+    else:
+        X_e, y_e, ph_e, _ = prepare_features(df_early, **prep_kw)
+        lines.append(f"  After target present: n={len(y_e):,}")
+        if len(y_e) < 30:
+            lines.append("  Skipped: too few rows after preprocessing.")
+            lines.append("")
         else:
-            lines.append(f"  {ph}: R²={r2:.4f}  (test n={n_test:,})")
+            X_tr, X_va, X_te_e, y_tr, y_va, y_te_e, _, _, ph_te_e = _train_val_test_split_with_phase(
+                X_e, y_e, ph_e
+            )
+            lines.append(
+                f"  Split: train={len(y_tr):,}  val={len(y_va):,}  test={len(y_te_e):,}  (all early-pool phases)"
+            )
+            m_early = _new_regressor()
+            m_early.fit(X_tr, y_tr)
+            for split_name, X_s, y_s in (
+                ("train", X_tr, y_tr),
+                ("val", X_va, y_va),
+                ("test", X_te_e, y_te_e),
+            ):
+                m = _eval_split(split_name, m_early, X_s, y_s)
+                lines.append(
+                    f"  {m['set']:5}: RMSE={m['rmse']:,.0f} days  MAE={m['mae']:,.0f} days  R²={m['r2']:.4f}"
+                )
+            early_by_phase = _joint_test_metrics_by_phase(
+                m_early,
+                X_te_e,
+                y_te_e,
+                ph_te_e,
+                ("PHASE1", "PHASE1/PHASE2", "PHASE2"),
+            )
+            for ph in ("PHASE1", "PHASE1/PHASE2", "PHASE2"):
+                if ph not in early_by_phase:
+                    lines.append(f"  test ({ph} subset): too few rows for R².")
+                    continue
+                d = early_by_phase[ph]
+                lines.append(
+                    f"  test ({ph} subset): n={d['n']:,}  "
+                    f"RMSE={d['rmse']:,.0f}  MAE={d['mae']:,.0f}  R²={d['r2']:.4f}"
+                )
+            if "PHASE1/PHASE2" in early_by_phase:
+                d12 = early_by_phase["PHASE1/PHASE2"]
+                summary["PHASE1/PHASE2"] = (
+                    d12["n"],
+                    d12["r2"],
+                    "early joint (PHASE1+PHASE1/PHASE2+PHASE2)",
+                )
+            lines.append("")
+
+    # --- Late joint: train on PHASE2 + PHASE2/PHASE3 + PHASE3; report subset PHASE2/PHASE3 on test ---
+    df_late = completed[completed["phase"].isin(LATE_JOINT_PHASES)].copy()
+    lines.append("=" * 50)
+    lines.append(
+        f"MODEL late joint  (PHASE2 + PHASE2/PHASE3 + PHASE3; n={len(df_late):,} before dropna)"
+    )
+    lines.append("=" * 50)
+    if len(df_late) < 30:
+        lines.append("  Skipped: cohort too small.")
+        lines.append("")
+    else:
+        X_l, y_l, ph_l, _ = prepare_features(df_late, **prep_kw)
+        lines.append(f"  After target present: n={len(y_l):,}")
+        if len(y_l) < 30:
+            lines.append("  Skipped: too few rows after preprocessing.")
+            lines.append("")
+        else:
+            X_tr, X_va, X_te_l, y_tr, y_va, y_te_l, _, _, ph_te_l = _train_val_test_split_with_phase(
+                X_l, y_l, ph_l
+            )
+            lines.append(
+                f"  Split: train={len(y_tr):,}  val={len(y_va):,}  test={len(y_te_l):,}  (all late-pool phases)"
+            )
+            m_late = _new_regressor()
+            m_late.fit(X_tr, y_tr)
+            for split_name, X_s, y_s in (
+                ("train", X_tr, y_tr),
+                ("val", X_va, y_va),
+                ("test", X_te_l, y_te_l),
+            ):
+                m = _eval_split(split_name, m_late, X_s, y_s)
+                lines.append(
+                    f"  {m['set']:5}: RMSE={m['rmse']:,.0f} days  MAE={m['mae']:,.0f} days  R²={m['r2']:.4f}"
+                )
+            late_by_phase = _joint_test_metrics_by_phase(
+                m_late,
+                X_te_l,
+                y_te_l,
+                ph_te_l,
+                ("PHASE2", "PHASE2/PHASE3", "PHASE3"),
+            )
+            for ph in ("PHASE2", "PHASE2/PHASE3", "PHASE3"):
+                if ph not in late_by_phase:
+                    lines.append(f"  test ({ph} subset): too few rows for R².")
+                    continue
+                d = late_by_phase[ph]
+                lines.append(
+                    f"  test ({ph} subset): n={d['n']:,}  "
+                    f"RMSE={d['rmse']:,.0f}  MAE={d['mae']:,.0f}  R²={d['r2']:.4f}"
+                )
+            if "PHASE2/PHASE3" in late_by_phase:
+                d23 = late_by_phase["PHASE2/PHASE3"]
+                summary["PHASE2/PHASE3"] = (
+                    d23["n"],
+                    d23["r2"],
+                    "late joint (PHASE2+PHASE2/PHASE3+PHASE3)",
+                )
+            lines.append("")
+
+    # --- Baseline: old approach (dedicated model trained only on mixed-phase rows) ---
+    lines.append("=" * 50)
+    lines.append("BASELINE — dedicated model on mixed-phase rows only (previous approach)")
+    lines.append("=" * 50)
+    for mix_phase in ("PHASE1/PHASE2", "PHASE2/PHASE3"):
+        df_m = completed[completed["phase"] == mix_phase].copy()
+        n_m = len(df_m)
+        lines.append(f"  {mix_phase} cohort: n={n_m:,} before dropna")
+        if n_m < 30:
+            lines.append(f"    Skipped: too few rows.")
+            continue
+        X_m, y_m, _, _ = prepare_features(df_m, **prep_kw)
+        if len(y_m) < 30:
+            lines.append(f"    Skipped after dropna: n={len(y_m):,}")
+            continue
+        X_tr, X_va, X_te, y_tr, y_va, y_te = _train_val_test_split(X_m, y_m)
+        base = _new_regressor()
+        base.fit(X_tr, y_tr)
+        te = _eval_split("test", base, X_te, y_te)
+        lines.append(
+            f"    test: n={len(y_te):,}  RMSE={te['rmse']:,.0f}  MAE={te['mae']:,.0f}  R²={te['r2']:.4f}"
+        )
+    lines.append("")
+    lines.append(
+        "Interpretation: baseline R² uses a test split drawn only from the mixed-phase cohort; "
+        "joint-model R² for that label uses only mixed-phase rows in the joint pool's test fold "
+        "(different test composition). Compare qualitatively."
+    )
+    lines.append("")
+
+    lines.append("=" * 50)
+    lines.append("TABLE — JOINT MODELS, ALL PHASE SUBSETS (that phase's rows in the joint test fold)")
+    lines.append("Phase\tWhich model\tTest n\tR²\tRMSE (days)\tMAE (days)")
+    joint_comparison_order: list[tuple[str, str]] = [
+        ("PHASE1", "JOINT_EARLY"),
+        ("PHASE1/PHASE2", "JOINT_EARLY"),
+        ("PHASE2", "JOINT_EARLY"),
+        ("PHASE2", "JOINT_LATE"),
+        ("PHASE2/PHASE3", "JOINT_LATE"),
+        ("PHASE3", "JOINT_LATE"),
+    ]
+    for ph, tag in joint_comparison_order:
+        src = early_by_phase if tag == "JOINT_EARLY" else late_by_phase
+        if ph not in src:
+            continue
+        d = src[ph]
+        lines.append(
+            f"{ph}\t{tag}\t{d['n']:,}\t{d['r2']:.4f}\t{round(d['rmse'])}\t{round(d['mae'])}"
+        )
+    lines.append("")
+
+    lines.append("=" * 50)
+    lines.append("TABLE — BEST JOINT PER LABEL (highest test R² when both joints cover the label)")
+    lines.append("Phase\tWhich model\tTest n\tR²\tRMSE (days)\tMAE (days)")
+    for ph in PHASE_REPORT_ORDER:
+        cands: list[tuple[str, dict]] = []
+        if ph in early_by_phase:
+            cands.append(("JOINT_EARLY", early_by_phase[ph]))
+        if ph in late_by_phase:
+            cands.append(("JOINT_LATE", late_by_phase[ph]))
+        if not cands:
+            continue
+        tag, d = max(cands, key=lambda x: x[1]["r2"])
+        lines.append(
+            f"{ph}\t{tag}\t{d['n']:,}\t{d['r2']:.4f}\t{round(d['rmse'])}\t{round(d['mae'])}"
+        )
+    lines.append("")
+
+    lines.append("=" * 50)
+    lines.append("SUMMARY — TEST R² BY ROW PHASE (model used for that label)")
+    lines.append("=" * 50)
+    for ph in PHASE_REPORT_ORDER:
+        if ph in summary:
+            n_t, r2, desc = summary[ph]
+            lines.append(f"  {ph}: n={n_t:,}  R²={r2:.4f}  — {desc}")
+        else:
+            lines.append(f"  {ph}: n/a  (skipped or insufficient test rows)")
     lines.append("=" * 50)
 
     report = "\n".join(lines)
