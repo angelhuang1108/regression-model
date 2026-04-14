@@ -14,6 +14,8 @@ from explore_site_footprint import main as run_site_footprint
 from explore_designs import main as run_designs
 from explore_arm_intervention import main as run_arm_intervention
 from explore_design_outcomes import main as run_design_outcomes
+from explore_eligibility_criteria_text import main as run_eligibility_criteria_text
+from study_max_planned_followup_days import main as run_max_planned_followup_days
 
 if __name__ == "__main__":
     run_studies()
@@ -25,3 +27,5 @@ if __name__ == "__main__":
     run_designs()
     run_design_outcomes()
     run_arm_intervention()
+    run_eligibility_criteria_text()
+    run_max_planned_followup_days()
