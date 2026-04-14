@@ -2,7 +2,7 @@
 Planning-time experiment orchestration (used by ``main.py --planning-experiment`` or run directly).
 
 Runs baseline primary → post-primary strict → combined forecast → late-risk → combined deviation;
-artifacts under ``results/experiments/<UTC>/``.
+artifacts under ``6_results/experiments/<UTC>/``.
 """
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR = PROJECT_ROOT / "results"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+RESULTS_DIR = PROJECT_ROOT / "6_results"
 EXPERIMENTS_DIR = RESULTS_DIR / "experiments"
 
 RANDOM_STATE = 42
@@ -151,7 +151,7 @@ def run_experiment(*, dry_run: bool, late_quantile: float) -> Path | None:
             "1. Baseline primary_completion training",
             [
                 py,
-                str(PROJECT_ROOT / "4_regression" / "train_regression.py"),
+                str(PROJECT_ROOT / "4_regression" / "core" / "step03_train_regression.py"),
                 "--target",
                 "primary_completion",
                 "--feature-policy",
@@ -166,7 +166,7 @@ def run_experiment(*, dry_run: bool, late_quantile: float) -> Path | None:
             "2. post_primary_completion (strict_planning) training",
             [
                 py,
-                str(PROJECT_ROOT / "4_regression" / "train_regression.py"),
+                str(PROJECT_ROOT / "4_regression" / "core" / "step03_train_regression.py"),
                 "--target",
                 "post_primary_completion",
                 "--feature-policy",
@@ -181,7 +181,7 @@ def run_experiment(*, dry_run: bool, late_quantile: float) -> Path | None:
             "3. Combined forecast (stage models + CSV)",
             [
                 py,
-                str(PROJECT_ROOT / "4_regression" / "combined_duration_forecast.py"),
+                str(PROJECT_ROOT / "4_regression" / "experiments" / "combined_duration_forecast.py"),
                 "--models-dir",
                 str(exp_dir / "stage_models"),
                 "--output",
@@ -193,7 +193,7 @@ def run_experiment(*, dry_run: bool, late_quantile: float) -> Path | None:
             "4. Late-risk classification",
             [
                 py,
-                str(PROJECT_ROOT / "4_regression" / "late_risk_classifier.py"),
+                str(PROJECT_ROOT / "4_regression" / "experiments" / "late_risk_classifier.py"),
                 "--report",
                 str(exp_dir / "late_risk_classification_report.txt"),
                 "--predictions",
@@ -252,7 +252,7 @@ def run_experiment(*, dry_run: bool, late_quantile: float) -> Path | None:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Run full planning-time modeling experiment into results/experiments/")
+    p = argparse.ArgumentParser(description="Run full planning-time modeling experiment into 6_results/experiments/")
     p.add_argument("--dry-run", action="store_true", help="Print steps only; do not execute.")
     p.add_argument(
         "--late-quantile",

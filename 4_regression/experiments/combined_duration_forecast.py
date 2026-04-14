@@ -2,16 +2,16 @@
 """
 Combined full-duration forecast: primary-completion (baseline features) + post-primary (strict planning), summed.
 
-Loads sklearn bundles from ``results/stage_models/`` (fits and saves them if missing or with ``--refit``).
+Loads sklearn bundles from ``6_results/stage_models/`` (fits and saves them if missing or with ``--refit``).
 Each bundle is one HistGradientBoostingRegressor + TransformedTargetRegressor(log1p/expm1), trained on
 all COMPLETED rows in that phase pool after the usual target filter — same routing as ``train_regression``.
 
-Outputs CSV (default ``results/combined_duration_predictions.csv``) with predictions, actuals when defined,
+Outputs CSV (default ``6_results/combined_duration_predictions.csv``) with predictions, actuals when defined,
 and logged sanity checks (no NaNs in predictions, no negatives after clipping).
 
 Usage (repo root):
-  python 4_regression/combined_duration_forecast.py
-  python 4_regression/combined_duration_forecast.py --refit --output results/combined_duration_predictions.csv
+  python 4_regression/experiments/combined_duration_forecast.py
+  python 4_regression/experiments/combined_duration_forecast.py --refit --output 6_results/combined_duration_predictions.csv
 """
 from __future__ import annotations
 
@@ -26,11 +26,14 @@ import numpy as np
 import pandas as pd
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
-if str(_SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPT_DIR))
+_REGRESSION_DIR = _SCRIPT_DIR.parent
+_CORE_DIR = _REGRESSION_DIR / "core"
+for p in (_REGRESSION_DIR, _CORE_DIR):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
-from features import transform_feature_matrix  # noqa: E402
-from targets import resolve_target_series  # noqa: E402
+from step01_features import transform_feature_matrix  # noqa: E402
+from step02_targets import resolve_target_series  # noqa: E402
 from cohort_columns import (  # noqa: E402
     EARLY_JOINT_PHASES,
     KEPT_ARM_INTERVENTION,
@@ -41,8 +44,8 @@ from cohort_columns import (  # noqa: E402
     KEPT_SITE_FOOTPRINT,
     LATE_JOINT_PHASES,
 )
-from cohort_io import load_and_join  # noqa: E402
-from train_regression import RESULTS_DIR, _new_regressor, prepare_features  # noqa: E402
+from step00_cohort_io import load_and_join  # noqa: E402
+from step03_train_regression import RESULTS_DIR, _new_regressor, prepare_features  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -304,7 +307,7 @@ def _parse_args() -> argparse.Namespace:
         "--models-dir",
         type=Path,
         default=RESULTS_DIR / "stage_models",
-        help="Directory for per-slot joblib bundles (default: results/stage_models).",
+        help="Directory for per-slot joblib bundles (default: 6_results/stage_models).",
     )
     p.add_argument(
         "--output",

@@ -6,18 +6,14 @@ pipelines so they do not depend on each other's modules for these constants.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_PREPROC = _PROJECT_ROOT / "3_preprocessing"
-if str(_PREPROC) not in sys.path:
-    sys.path.insert(0, str(_PREPROC))
-from eligibility_criteria_features import CRITERIA_TEXT_FEATURE_COLUMNS  # noqa: E402
-
 # Best-performing columns from ablation studies (see MODEL.md)
 KEPT_ELIGIBILITY = ["gender", "minimum_age", "maximum_age", "adult", "child", "older_adult"]
-KEPT_ELIGIBILITY_CRITERIA_TEXT = list(CRITERIA_TEXT_FEATURE_COLUMNS)
+KEPT_ELIGIBILITY_CRITERIA_TEXT = [
+    "eligibility_criteria_char_len",
+    "eligibility_n_inclusion_tildes",
+    "eligibility_n_exclusion_tildes",
+    "eligibility_has_burden_procedure",
+]
 KEPT_SITE_FOOTPRINT = ["number_of_facilities", "number_of_countries", "us_only", "has_single_facility"]
 KEPT_DESIGN = [
     "randomized",

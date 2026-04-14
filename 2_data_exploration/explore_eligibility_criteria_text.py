@@ -2,33 +2,68 @@
 Explore eligibility *criteria* free text in eligibilities.csv for future NLP-style features:
 text length, inclusion/exclusion tilde counts, procedure-burden keywords.
 
-Data: raw_data/eligibilities.csv — column `criteria` holds the full text block.
+Data: 0_data/raw_data/eligibilities.csv — column `criteria` holds the full text block.
 """
 from __future__ import annotations
 
 import logging
-import sys
 from pathlib import Path
 
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).parent.parent
-_PREPROC = PROJECT_ROOT / "3_preprocessing"
-if str(_PREPROC) not in sys.path:
-    sys.path.insert(0, str(_PREPROC))
-from eligibility_criteria_features import (
-    BURDEN_KEYWORDS,
-    count_exclusion_tildes,
-    count_inclusion_tildes,
-    has_burden_keyword,
-)
 
-RAW_DATA = PROJECT_ROOT / "raw_data"
+BURDEN_KEYWORDS = [
+    "biopsy",
+    "mri",
+    "ecg",
+    "ekg",
+    "washout",
+    "endoscopy",
+    "colonoscopy",
+    "bronchoscopy",
+    "lumbar puncture",
+    "spinal tap",
+    "pet scan",
+    "ct scan",
+    "cardiac catheterization",
+]
+
+RAW_DATA = PROJECT_ROOT / "0_data" / "raw_data"
 OUTPUT_DIR = PROJECT_ROOT / "2_data_exploration" / "outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+
+def count_inclusion_tildes(text: str) -> int:
+    if not isinstance(text, str) or not text.strip():
+        return 0
+    if "Inclusion Criteria:" not in text:
+        return 0
+    try:
+        before_excl = text.split("Exclusion Criteria:")[0]
+        inclusion_part = before_excl.split("Inclusion Criteria:")[1]
+        return inclusion_part.count("~")
+    except (IndexError, ValueError):
+        return 0
+
+
+def count_exclusion_tildes(text: str) -> int:
+    if not isinstance(text, str) or not text.strip():
+        return 0
+    if "Exclusion Criteria:" not in text:
+        return 0
+    exclusion_part = text.split("Exclusion Criteria:")[1]
+    return exclusion_part.count("~")
+
+
+def has_burden_keyword(text: str) -> bool:
+    if not isinstance(text, str) or not text.strip():
+        return False
+    t = text.lower()
+    return any(kw in t for kw in BURDEN_KEYWORDS)
 
 
 def summarize_series(s: pd.Series, name: str, lines: list[str]) -> None:

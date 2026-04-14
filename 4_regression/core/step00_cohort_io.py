@@ -1,5 +1,5 @@
 """
-Load and join completed clinical trial records for modeling (clean_data + raw_data).
+Load and join completed clinical trial records for modeling (0_data/clean_data + 0_data/raw_data).
 
 This module is the single I/O entry for the completed-study frame used by regression,
 deviation analysis, and related tools. ``train_regression.load_and_join`` re-exports
@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-CLEAN_DATA = PROJECT_ROOT / "clean_data"
-RAW_DATA = PROJECT_ROOT / "raw_data"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+CLEAN_DATA = PROJECT_ROOT / "0_data" / "clean_data"
+RAW_DATA = PROJECT_ROOT / "0_data" / "raw_data"
 
 
 def _parse_time_frame_days(tf: str) -> float | None:

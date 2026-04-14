@@ -52,7 +52,7 @@ The following tables are downloaded:
 | `interventions` | Intervention details |
 | `calculated_values` | Pre-computed derived fields |
 
-Raw downloads are stored in `raw_data/` as CSV or Parquet files.
+Raw downloads are stored in `0_data/raw_data/` as CSV or Parquet files.
 
 ---
 
@@ -104,10 +104,10 @@ frequencies, intervention types, eligibility criteria, site footprints, study de
 `preprocess.py` applies the cohort filters above, computes duration targets,
 merges eligibility features, and outputs:
 
-- `clean_data/studies.csv`
-- `clean_data/sponsors.csv`
-- `clean_data/enrollment_stats_by_phase.csv`
-- `clean_data/preprocessing_summary.txt`
+- `0_data/clean_data/studies.csv`
+- `0_data/clean_data/sponsors.csv`
+- `0_data/clean_data/enrollment_stats_by_phase.csv`
+- `0_data/clean_data/preprocessing_summary.txt`
 
 `sanity_check.py` reports descriptive statistics on duration distributions
 (min, max, mean, median, standard deviation, percentiles).
@@ -329,32 +329,31 @@ python 3_preprocessing/preprocess.py
 ### Regression training only
 
 ```bash
-python 4_regression/train_regression.py
+python 4_regression/core/step03_train_regression.py
 ```
 
 ### Planning-time experiment (all five stages)
 
 ```bash
-PYTHONPATH=4_regression python 4_regression/planning_experiment_runner.py
+PYTHONPATH=4_regression python 4_regression/experiments/planning_experiment_runner.py
 ```
 
 ### Dry run (validate pipeline without training)
 
 ```bash
-PYTHONPATH=4_regression python 4_regression/planning_experiment_runner.py --dry-run
+PYTHONPATH=4_regression python 4_regression/experiments/planning_experiment_runner.py --dry-run
 ```
 
 ### Post-primary and combined forecasts
 
 ```bash
-PYTHONPATH=4_regression python 4_regression/train_post_primary_planning.py
-PYTHONPATH=4_regression python 4_regression/combined_duration_forecast.py
+PYTHONPATH=4_regression python 4_regression/experiments/combined_duration_forecast.py
 ```
 
 ### Late-risk classification
 
 ```bash
-PYTHONPATH=4_regression python 4_regression/late_risk_classifier.py
+PYTHONPATH=4_regression python 4_regression/experiments/late_risk_classifier.py
 ```
 
 ### Deviation analysis
@@ -382,14 +381,14 @@ python tests/validate_targets.py
 
 | Path | Contents |
 |---|---|
-| `clean_data/studies.csv` | Preprocessed trial records |
-| `clean_data/preprocessing_summary.txt` | Filtering summary |
-| `clean_data/enrollment_stats_by_phase.csv` | Enrollment statistics by phase |
-| `results/regression_report.txt` | Primary completion model results |
-| `results/regression_report_post_primary_completion_strict_planning.txt` | Post-primary model results |
-| `results/experiments/<UTC_timestamp>/` | Full experiment output directory |
-| `results/experiments/<UTC_timestamp>/predictions.csv` | Per-trial predictions |
-| `results/experiments/<UTC_timestamp>/deviation_summary.txt` | Deviation analysis report |
+| `0_data/clean_data/studies.csv` | Preprocessed trial records |
+| `0_data/clean_data/preprocessing_summary.txt` | Filtering summary |
+| `0_data/clean_data/enrollment_stats_by_phase.csv` | Enrollment statistics by phase |
+| `6_results/regression_report.txt` | Primary completion model results |
+| `6_results/regression_report_post_primary_completion_strict_planning.txt` | Post-primary model results |
+| `6_results/experiments/<UTC_timestamp>/` | Full experiment output directory |
+| `6_results/experiments/<UTC_timestamp>/predictions.csv` | Per-trial predictions |
+| `6_results/experiments/<UTC_timestamp>/deviation_summary.txt` | Deviation analysis report |
 
 ---
 
@@ -405,7 +404,7 @@ regression-model/
 ├── 4_regression/            # Models, features, evaluation
 ├── 5_deviation/             # Standalone deviation analysis
 ├── tests/                   # Feature registry and target validation
-├── raw_data/                # Downloaded source tables (gitignored)
-├── clean_data/              # Preprocessed outputs (gitignored)
-└── results/                 # Model reports and experiment artifacts
+├── 0_data/raw_data/         # Downloaded source tables (gitignored)
+├── 0_data/clean_data/       # Preprocessed outputs (gitignored)
+└── 6_results/               # Model reports and experiment artifacts
 ```

@@ -14,7 +14,7 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.compose import TransformedTargetRegressor
 
-from targets import calculate_pct_deviation
+from step02_targets import calculate_pct_deviation
 
 
 def core_regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:

@@ -1,21 +1,16 @@
 """
 Preprocess studies and sponsors with filtering criteria.
-Saves to clean_data folder.
+Saves to 0_data/clean_data folder.
 """
 import logging
 from pathlib import Path
 
 import pandas as pd
 
-from eligibility_criteria_features import (
-    CRITERIA_TEXT_FEATURE_COLUMNS,
-    compute_criteria_features_for_eligibilities,
-)
-
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
-RAW_DATA = PROJECT_ROOT / "raw_data"
-CLEAN_DATA = PROJECT_ROOT / "clean_data"
+RAW_DATA = PROJECT_ROOT / "0_data" / "raw_data"
+CLEAN_DATA = PROJECT_ROOT / "0_data" / "clean_data"
 OUTPUT_DIR = CLEAN_DATA
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -31,6 +26,29 @@ ALLOWED_PHASES = {"PHASE1", "PHASE2", "PHASE3", "PHASE1/PHASE2", "PHASE2/PHASE3"
 # duration_days = primary_completion_date − start_date (days)
 MIN_DURATION_DAYS = 14  # drop bottom outliers / implausibly short windows
 MAX_DURATION_DAYS = 3650  # 10 years — cap top outliers
+
+CRITERIA_TEXT_FEATURE_COLUMNS = [
+    "eligibility_criteria_char_len",
+    "eligibility_n_inclusion_tildes",
+    "eligibility_n_exclusion_tildes",
+    "eligibility_has_burden_procedure",
+]
+
+BURDEN_KEYWORDS = [
+    "biopsy",
+    "mri",
+    "ecg",
+    "ekg",
+    "washout",
+    "endoscopy",
+    "colonoscopy",
+    "bronchoscopy",
+    "lumbar puncture",
+    "spinal tap",
+    "pet scan",
+    "ct scan",
+    "cardiac catheterization",
+]
 
 
 def load_raw_data() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -76,6 +94,55 @@ def filter_studies(
     logger.info("After industry sponsor filter: %s rows", f"{len(filtered):,}")
 
     return filtered
+
+
+def count_inclusion_tildes(text: str) -> int:
+    if not isinstance(text, str) or not text.strip():
+        return 0
+    if "Inclusion Criteria:" not in text:
+        return 0
+    try:
+        before_excl = text.split("Exclusion Criteria:")[0]
+        inclusion_part = before_excl.split("Inclusion Criteria:")[1]
+        return inclusion_part.count("~")
+    except (IndexError, ValueError):
+        return 0
+
+
+def count_exclusion_tildes(text: str) -> int:
+    if not isinstance(text, str) or not text.strip():
+        return 0
+    if "Exclusion Criteria:" not in text:
+        return 0
+    exclusion_part = text.split("Exclusion Criteria:")[1]
+    return exclusion_part.count("~")
+
+
+def has_burden_keyword(text: str) -> bool:
+    if not isinstance(text, str) or not text.strip():
+        return False
+    t = text.lower()
+    return any(kw in t for kw in BURDEN_KEYWORDS)
+
+
+def compute_criteria_features_for_eligibilities(elig: pd.DataFrame) -> pd.DataFrame:
+    """
+    Input: columns nct_id, criteria (one row per nct_id recommended).
+    Output: nct_id + CRITERIA_TEXT_FEATURE_COLUMNS (int).
+    """
+    if "nct_id" not in elig.columns or "criteria" not in elig.columns:
+        raise ValueError("elig must contain nct_id and criteria")
+    t = elig["criteria"].fillna("").astype(str)
+    out = pd.DataFrame(
+        {
+            "nct_id": elig["nct_id"].values,
+            "eligibility_criteria_char_len": t.str.len().astype("int64"),
+            "eligibility_n_inclusion_tildes": t.map(count_inclusion_tildes).astype("int64"),
+            "eligibility_n_exclusion_tildes": t.map(count_exclusion_tildes).astype("int64"),
+            "eligibility_has_burden_procedure": t.map(lambda x: int(has_burden_keyword(x))).astype("int64"),
+        }
+    )
+    return out
 
 
 def merge_eligibility_criteria_text_features(filtered_studies: pd.DataFrame) -> pd.DataFrame:
@@ -149,7 +216,7 @@ def save_and_report(
     filtered_sponsors: pd.DataFrame,
     enrollment_stats: pd.DataFrame,
 ) -> None:
-    """Save to clean_data and write summary report."""
+    """Save to 0_data/clean_data and write summary report."""
     # Save CSVs
     studies_path = OUTPUT_DIR / "studies.csv"
     sponsors_path = OUTPUT_DIR / "sponsors.csv"

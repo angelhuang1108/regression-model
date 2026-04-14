@@ -14,7 +14,7 @@ for the text report. Data load uses ``cohort_io`` / ``cohort_columns``; feature 
 
 Usage:
   python 5_deviation/deviation_analysis.py --target primary_completion
-  python 5_deviation/deviation_analysis.py --target combined --combined-csv results/combined_duration_predictions.csv
+  python 5_deviation/deviation_analysis.py --target combined --combined-csv 6_results/combined_duration_predictions.csv
 """
 from __future__ import annotations
 
@@ -45,12 +45,12 @@ from cohort_columns import (  # noqa: E402
     PHASE_SINGLE_MODELS,
     default_feature_prep_kw,
 )
-from cohort_io import load_and_join  # noqa: E402
-from evaluation import format_deviation_summary_report  # noqa: E402
-from targets import calculate_pct_deviation, describe_target_kind, make_late_flag  # noqa: E402
-from train_regression import prepare_features  # noqa: E402
+from core.step00_cohort_io import load_and_join  # noqa: E402
+from core.step04_evaluation import format_deviation_summary_report  # noqa: E402
+from core.step02_targets import calculate_pct_deviation, describe_target_kind, make_late_flag  # noqa: E402
+from core.step03_train_regression import prepare_features  # noqa: E402
 
-RESULTS_DIR = PROJECT_ROOT / "results"
+RESULTS_DIR = PROJECT_ROOT / "6_results"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger(__name__)
@@ -275,7 +275,7 @@ def run_analysis(
         cpath = combined_csv or (RESULTS_DIR / "combined_duration_predictions.csv")
         if not cpath.exists():
             raise FileNotFoundError(
-                f"Combined predictions not found: {cpath}. Run 4_regression/combined_duration_forecast.py first."
+                f"Combined predictions not found: {cpath}. Run 4_regression/experiments/combined_duration_forecast.py first."
             )
         deviation_df = deviation_table_from_combined_csv(
             cpath, threshold_pct=threshold_pct, splits=splits

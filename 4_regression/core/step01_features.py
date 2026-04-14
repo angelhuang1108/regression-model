@@ -8,14 +8,21 @@ training; ``strict_planning`` drops columns flagged in ``feature_registry``.
 from __future__ import annotations
 
 import logging
+import sys
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_REGRESSION_DIR = _SCRIPT_DIR.parent
+if str(_REGRESSION_DIR) not in sys.path:
+    sys.path.insert(0, str(_REGRESSION_DIR))
+
 from feature_registry import get_feature_policy, validate_no_leakage
-from targets import (
+from step02_targets import (
     DEFAULT_TARGET_KIND,
     MODEL_TARGET_INTERNAL_COL,
     resolve_target_series,

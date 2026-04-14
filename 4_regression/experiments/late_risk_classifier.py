@@ -8,12 +8,12 @@ Late-risk classification (separate from regression): predict high tail duration 
   positive if actual duration exceeds that phase's training quantile (fallback: global train quantile).
 
 Outputs:
-  results/late_risk_classification_report.txt
-  results/late_risk_predictions.csv
+  6_results/late_risk_classification_report.txt
+  6_results/late_risk_predictions.csv
 
 Usage (repo root):
-  python 4_regression/late_risk_classifier.py
-  python 4_regression/late_risk_classifier.py --late-quantile 0.80 --random-state 42
+  python 4_regression/experiments/late_risk_classifier.py
+  python 4_regression/experiments/late_risk_classifier.py --late-quantile 0.80 --random-state 42
 """
 from __future__ import annotations
 
@@ -35,8 +35,11 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
-if str(_SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPT_DIR))
+_REGRESSION_DIR = _SCRIPT_DIR.parent
+_CORE_DIR = _REGRESSION_DIR / "core"
+for p in (_REGRESSION_DIR, _CORE_DIR):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 from cohort_columns import (  # noqa: E402
     KEPT_ARM_INTERVENTION,
@@ -46,8 +49,8 @@ from cohort_columns import (  # noqa: E402
     KEPT_ELIGIBILITY_CRITERIA_TEXT,
     KEPT_SITE_FOOTPRINT,
 )
-from cohort_io import load_and_join  # noqa: E402
-from train_regression import RESULTS_DIR, prepare_features  # noqa: E402
+from step00_cohort_io import load_and_join  # noqa: E402
+from step03_train_regression import RESULTS_DIR, prepare_features  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

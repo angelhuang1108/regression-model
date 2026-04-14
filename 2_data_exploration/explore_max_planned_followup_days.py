@@ -1,6 +1,6 @@
 """
 Per-trial summary for max_planned_followup_days (max parsed time_frame in days
-per NCT ID), aligned with 4_regression/train_regression.py.
+per NCT ID), aligned with 4_regression/core/step03_train_regression.py.
 
 Writes a text report and optional CSV under 2_data_exploration/outputs/.
 """
@@ -11,8 +11,8 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).parent.parent
-CLEAN_DATA = PROJECT_ROOT / "clean_data"
-RAW_DATA = PROJECT_ROOT / "raw_data"
+CLEAN_DATA = PROJECT_ROOT / "0_data" / "clean_data"
+RAW_DATA = PROJECT_ROOT / "0_data" / "raw_data"
 OUTPUT_DIR = PROJECT_ROOT / "2_data_exploration" / "outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_time_frame_days(tf: str) -> float | None:
-    """Same logic as train_regression._parse_time_frame_days."""
+    """Same logic as step03_train_regression parsing logic."""
     if pd.isna(tf) or not isinstance(tf, str) or not tf.strip():
         return None
     tf = tf.strip().lower()
@@ -86,9 +86,9 @@ def main() -> None:
     nct_ids = set(studies["nct_id"].astype(str))
     lines: list[str] = []
     lines.append("=" * 72)
-    lines.append("max_planned_followup_days — per-trial study (COMPLETED cohort, clean_data)")
+    lines.append("max_planned_followup_days — per-trial study (COMPLETED cohort, 0_data/clean_data)")
     lines.append("=" * 72)
-    lines.append(f"Completed trials in clean_data/studies.csv: {len(studies):,}")
+    lines.append(f"Completed trials in 0_data/clean_data/studies.csv: {len(studies):,}")
     lines.append("")
 
     do = load_design_outcomes_for_nct_ids(nct_ids)

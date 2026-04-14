@@ -1,5 +1,5 @@
 """
-Download the interventions table from BigQuery and save it to raw_data folder.
+Download the interventions table from BigQuery and save it to 0_data/raw_data folder.
 Uses checkpointing: skips if data is up to date.
 """
 import logging
@@ -12,7 +12,7 @@ from bq_downloader import download_table
 PROJECT_ID = "regeneron-capstone-delta"
 DATASET_ID = "regeneron_capstone_delta_dataset"
 TABLE_NAME = "interventions"
-OUTPUT_DIR = Path(__file__).parent.parent / "raw_data"
+OUTPUT_DIR = Path(__file__).parent.parent / "0_data" / "raw_data"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,7 +23,7 @@ logging.basicConfig(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Download BigQuery interventions table to raw_data")
+    parser = argparse.ArgumentParser(description="Download BigQuery interventions table to 0_data/raw_data")
     parser.add_argument("--project", default=PROJECT_ID, help="GCP project ID")
     parser.add_argument("--dataset", default=DATASET_ID, help="BigQuery dataset ID")
     parser.add_argument("--table", default=TABLE_NAME, help="Table name")

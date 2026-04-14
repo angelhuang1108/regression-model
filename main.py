@@ -1,12 +1,12 @@
 """
 Run full pipeline: 1. Download → 2. Data exploration → 3. Preprocessing → 4. Modeling.
 
-- **Default (step 4):** single baseline primary regression → ``results/regression_report.txt``
+- **Default (step 4):** single baseline primary regression → ``6_results/regression_report.txt``
 - **``--planning-experiment``:** full staged planning-time run (primary + post-primary strict + combined
-  forecast + late-risk + deviation) → ``results/experiments/<UTC>/``
+  forecast + late-risk + deviation) → ``6_results/experiments/<UTC>/``
 
-Checkpointing: download scripts skip if data is up to date (see raw_data/.checkpoints/).
-Use --skip-download to skip downloads when you already have raw_data.
+Checkpointing: download scripts skip if data is up to date (see 0_data/raw_data/.checkpoints/).
+Use --skip-download to skip downloads when you already have 0_data/raw_data.
 """
 import argparse
 import subprocess
@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent
-RESULTS_DIR = PROJECT_ROOT / "results"
+RESULTS_DIR = PROJECT_ROOT / "6_results"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 DOWNLOAD_SCRIPTS = [
@@ -56,7 +56,7 @@ def main() -> None:
     parser.add_argument(
         "--skip-download",
         action="store_true",
-        help="Skip download steps (use when raw_data already exists)",
+        help="Skip download steps (use when 0_data/raw_data already exists)",
     )
     parser.add_argument(
         "--planning-experiment",
@@ -110,7 +110,7 @@ def main() -> None:
             sys.exit(1)
 
     if args.planning_experiment:
-        sys.path.insert(0, str(PROJECT_ROOT / "4_regression"))
+        sys.path.insert(0, str(PROJECT_ROOT / "4_regression" / "experiments"))
         from planning_experiment_runner import run_experiment
 
         print("\n4. Planning-time experiment (staged models)")
@@ -133,7 +133,7 @@ def main() -> None:
 
     print("\n4. Regression (baseline primary_completion)")
     if not run_script(
-        PROJECT_ROOT / "4_regression" / "train_regression.py",
+        PROJECT_ROOT / "4_regression" / "core" / "step03_train_regression.py",
         "4. Regression",
         quiet=False,
     ):

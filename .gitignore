@@ -1,7 +1,7 @@
 # Data
-raw_data/
-clean_data/
-results/
+0_data/raw_data/
+0_data/clean_data/
+6_results/
 
 # Exploration outputs
 2_data_exploration/outputs/

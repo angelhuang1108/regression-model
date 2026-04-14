@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-CHECKPOINT_DIR = Path(__file__).parent.parent / "raw_data" / ".checkpoints"
+CHECKPOINT_DIR = Path(__file__).parent.parent / "0_data" / "raw_data" / ".checkpoints"
 
 
 def _get_checkpoint_path(output_dir: Path, table_name: str) -> Path:

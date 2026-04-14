@@ -1,4 +1,13 @@
 """
+Main entrypoint for stage 4 regression pipeline.
+
+Flow:
+1. Load cohort (step00_cohort_io)
+2. Build features (step01_features)
+3. Attach targets (step02_targets)
+4. Train models
+5. Evaluate and write reports (step04_evaluation)
+
 Join studies with sponsors, select features, train/val/test split,
 and run regression to predict a configurable duration target (default: primary_completion / duration_days).
 
@@ -22,7 +31,12 @@ import pandas as pd
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import train_test_split
-from evaluation import (
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_REGRESSION_DIR = _SCRIPT_DIR.parent
+if str(_REGRESSION_DIR) not in sys.path:
+    sys.path.insert(0, str(_REGRESSION_DIR))
+from step04_evaluation import (
     evaluate_sklearn_split,
     evaluate_subset,
     joint_subset_report_line,
@@ -42,14 +56,14 @@ from cohort_columns import (
     PHASE_SINGLE_MODELS,
     PHASES_WITH_DEDICATED_MODELS,
 )
-from cohort_io import load_and_join
-from features import assemble_feature_matrix
+from step00_cohort_io import load_and_join
+from step01_features import assemble_feature_matrix
 
-from targets import DEFAULT_TARGET_KIND, TARGET_DURATION_COLUMN, describe_target_kind
+from step02_targets import DEFAULT_TARGET_KIND, TARGET_DURATION_COLUMN, describe_target_kind
 
 # Paths
-PROJECT_ROOT = Path(__file__).parent.parent
-RESULTS_DIR = PROJECT_ROOT / "results"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+RESULTS_DIR = PROJECT_ROOT / "6_results"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
