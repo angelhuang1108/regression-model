@@ -112,6 +112,10 @@ merges eligibility features, and outputs:
 `sanity_check.py` reports descriptive statistics on duration distributions
 (min, max, mean, median, standard deviation, percentiles).
 
+Condition mapping is also part of preprocessing. The scripts in
+`3_preprocessing/condition_mapping/` generate `stage3_nct_features.csv` (ICD-10/CCSR-derived
+trial condition features), which are joined by `4_regression/core/step00_cohort_io.py`.
+
 ### Stage 4 — Regression (`4_regression/`)
 
 See [Modeling](#modeling) for details on algorithms and training strategy.
@@ -209,9 +213,21 @@ Two feature policies control which inputs are available at prediction time:
 
 | Phase | R² |
 |---|---|
-| Phase 1 | ~0.60 |
-| Phase 2 | ~0.42–0.43 |
-| Phase 3 | ~0.42–0.43 |
+| Phase 1 | 0.6014 |
+| Phase 2 | 0.4234 |
+| Phase 3 | 0.4075 |
+
+### Latest Verified Run Snapshot
+
+The following values are from the latest end-to-end execution in this repository
+(`3_preprocessing/preprocess.py` + `4_regression/core/step03_train_regression.py`):
+
+- Preprocessed trials after all filters: **84,879**
+- Modeling cohort (COMPLETED): **57,865**
+- Condition mapping join coverage in modeling cohort (`has_ccsr=1`): **73.9%**
+- Mixed-phase routing results:
+  - `PHASE1/PHASE2` (early joint): **R²=0.3536**, RMSE=608 days, MAE=422 days
+  - `PHASE2/PHASE3` (late joint): **R²=0.2252**, RMSE=585 days, MAE=387 days
 
 ### Deviation Metrics
 
@@ -324,6 +340,12 @@ python main.py --skip-download
 
 ```bash
 python 3_preprocessing/preprocess.py
+```
+
+### Condition mapping only (preprocessing subflow)
+
+```bash
+python 3_preprocessing/run_condition_mapping.py
 ```
 
 ### Regression training only

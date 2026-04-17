@@ -57,3 +57,26 @@ Reports include mixed-cohort baselines and summary tables; see `6_results/regres
 ## Metrics
 
 Regression: **RMSE**, **MAE**, **R²** on train / val / test as printed in each report. Classification: see late-risk report. For a single-command refresh of the default primary baseline report, run `python 4_regression/core/step03_train_regression.py` and open **`6_results/regression_report.txt`**.
+
+## Latest verified baseline results
+
+From the latest local run of:
+
+- `python 3_preprocessing/preprocess.py`
+- `python 4_regression/core/step03_train_regression.py`
+
+Snapshot:
+
+- Preprocessed filtered trials: **84,879**
+- Completed modeling cohort: **57,865**
+- Condition-mapping coverage in completed cohort (`has_ccsr=1`): **73.9%**
+
+Primary-completion test metrics (baseline feature policy):
+
+| Phase / route | Test n | R² | RMSE (days) | MAE (days) |
+|---|---:|---:|---:|---:|
+| PHASE1 (dedicated) | 4,293 | 0.6014 | 330 | 183 |
+| PHASE2 (dedicated) | 3,305 | 0.4234 | 479 | 322 |
+| PHASE3 (dedicated) | 3,093 | 0.4075 | 457 | 304 |
+| PHASE1/PHASE2 (early joint routing) | 640 | 0.3536 | 608 | 422 |
+| PHASE2/PHASE3 (late joint routing) | 216 | 0.2252 | 585 | 387 |

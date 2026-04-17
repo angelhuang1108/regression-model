@@ -2,7 +2,7 @@
 Stage 2 — ICD-10 Lookup via local TF-IDF search against DXCCSR
 
 Input:  2_condition_mapping/output/stage1_normalized.csv
-        raw_data/condition_mapping_data/DXCCSR_v2026-1.csv
+        0_data/raw_data/condition_mapping_data/DXCCSR_v2026-1.csv
 Output: 2_condition_mapping/output/stage2_icd10.csv
         2_condition_mapping/output/manual_review_queue.csv
 
@@ -31,9 +31,9 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 STAGE1_OUT   = Path(__file__).parent / "output" / "stage1_normalized.csv"
-DXCCSR_PATH  = PROJECT_ROOT / "raw_data" / "condition_mapping_data" / "DXCCSR_v2026-1.csv"
+DXCCSR_PATH  = PROJECT_ROOT / "0_data" / "raw_data" / "condition_mapping_data" / "DXCCSR_v2026-1.csv"
 OUTPUT_FILE  = Path(__file__).parent / "output" / "stage2_icd10.csv"
 REVIEW_FILE  = Path(__file__).parent / "output" / "manual_review_queue.csv"
 

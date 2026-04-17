@@ -30,13 +30,31 @@ python 4_regression/core/step03_train_regression.py
 
 - `6_results/regression_report.txt` is the main output report.
 
+## 5b. Latest verified results
+
+Most recent run in this workspace (`preprocess.py` then `step03_train_regression.py`):
+
+- Preprocessed filtered cohort: **84,879** trials
+- Completed modeling cohort: **57,865** trials
+- Condition mapping coverage in completed cohort (`has_ccsr=1`): **73.9%**
+
+Test metrics (days):
+
+| Phase | R² | RMSE | MAE |
+|---|---:|---:|---:|
+| PHASE1 (dedicated) | 0.6014 | 330 | 183 |
+| PHASE2 (dedicated) | 0.4234 | 479 | 322 |
+| PHASE3 (dedicated) | 0.4075 | 457 | 304 |
+| PHASE1/PHASE2 (early joint route) | 0.3536 | 608 | 422 |
+| PHASE2/PHASE3 (late joint route) | 0.2252 | 585 | 387 |
+
 ## 6. Regression R²: Paper vs Ours (test set)
 
 | Phase | TrialBench (Chen et al., 2025) | This project |
 |---|---:|---:|
-| Phase 1 | 0.6514 ± 0.0085 | ~0.60 |
-| Phase 2 | 0.4125 ± 0.0081 | ~0.42–0.43 |
-| Phase 3 | 0.3148 ± 0.0085 | ~0.42–0.43 |
+| Phase 1 | 0.6514 ± 0.0085 | 0.6014 |
+| Phase 2 | 0.4125 ± 0.0081 | 0.4234 |
+| Phase 3 | 0.3148 ± 0.0085 | 0.4075 |
 
 Interpretation: on this benchmark setup, our simpler tabular pipeline (phase-aware routing + engineered trial design/operational features + HGBR) is comparable on Phase 2 and stronger on Phase 3 versus the reported TrialBench baseline, despite TrialBench using richer multi-modal inputs.
 

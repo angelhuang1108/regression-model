@@ -3,7 +3,7 @@ Stage 1 — Normalization and Source Priority
 
 Inputs:
   2_condition_mapping/output/stage0_conditions.csv   (disease bucket from Stage 0)
-  raw_data/browse_conditions.csv                     (mesh-list terms)
+  0_data/raw_data/browse_conditions.csv              (mesh-list terms)
 
 Output:
   2_condition_mapping/output/stage1_normalized.csv
@@ -29,8 +29,8 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).parent.parent
-RAW_DATA = PROJECT_ROOT / "raw_data"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+RAW_DATA = PROJECT_ROOT / "0_data" / "raw_data"
 STAGE0_OUT = Path(__file__).parent / "output" / "stage0_conditions.csv"
 OUTPUT_DIR = Path(__file__).parent / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

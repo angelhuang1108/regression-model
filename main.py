@@ -1,5 +1,5 @@
 """
-Run full pipeline: 1. Download → 2. Data exploration → 3. Preprocessing → 4. Modeling.
+Run full pipeline: 1. Download → 2. Data exploration → 3. Preprocessing (incl. condition mapping) → 4. Modeling.
 
 - **Default (step 4):** single baseline primary regression → ``6_results/regression_report.txt``
 - **``--planning-experiment``:** full staged planning-time run (primary + post-primary strict + combined
@@ -33,6 +33,8 @@ DOWNLOAD_SCRIPTS = [
     PROJECT_ROOT / "1_scripts" / "download_browse_interventions.py",
 ]
 
+CONDITION_MAPPING_RUNNER = PROJECT_ROOT / "3_preprocessing" / "run_condition_mapping.py"
+
 
 def run_script(script_path: Path, step_name: str, quiet: bool = False) -> bool:
     """Run a Python script, return True if successful."""
@@ -51,7 +53,7 @@ def run_script(script_path: Path, step_name: str, quiet: bool = False) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run full pipeline: download → explore → preprocess → regression or planning experiment"
+        description="Run full pipeline: download → explore → preprocessing (with condition mapping) → regression or planning experiment"
     )
     parser.add_argument(
         "--skip-download",
@@ -62,6 +64,11 @@ def main() -> None:
         "--planning-experiment",
         action="store_true",
         help="After preprocess, run full planning-time experiment (replaces single train_regression step)",
+    )
+    parser.add_argument(
+        "--skip-condition-mapping",
+        action="store_true",
+        help="Skip condition mapping steps 00-03 (use when 2_condition_mapping/output is already up to date)",
     )
     parser.add_argument(
         "--experiment-dry-run",
@@ -101,13 +108,27 @@ def main() -> None:
 
     explore_preprocess = [
         (PROJECT_ROOT / "2_data_exploration" / "run_all.py", "2. Data exploration", True),
-        (PROJECT_ROOT / "3_preprocessing" / "preprocess.py", "3. Preprocessing", True),
     ]
 
     for script_path, step_name, quiet in explore_preprocess:
         if not run_script(script_path, step_name, quiet=quiet):
             print(f"ERROR: {step_name} failed")
             sys.exit(1)
+
+    if args.skip_condition_mapping:
+        print("\nSkipping condition mapping steps (--skip-condition-mapping)")
+    else:
+        if not run_script(CONDITION_MAPPING_RUNNER, "3. Preprocessing — condition mapping", quiet=True):
+            print("ERROR: 3. Preprocessing — condition mapping failed")
+            sys.exit(1)
+
+    if not run_script(
+        PROJECT_ROOT / "3_preprocessing" / "preprocess.py",
+        "3. Preprocessing — cohort + features",
+        quiet=True,
+    ):
+        print("ERROR: 3. Preprocessing — cohort + features failed")
+        sys.exit(1)
 
     if args.planning_experiment:
         sys.path.insert(0, str(PROJECT_ROOT / "4_regression" / "experiments"))
