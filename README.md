@@ -154,8 +154,17 @@ of `planning_experiment_runner.py`.
 **Classification (late-risk)**: `HistGradientBoostingClassifier`
 
 - `max_iter=200`, `random_state=42`, `class_weight="balanced"`
-- Label: `late_risk = 1` if actual total days > Q75 within phase
-  (falls back to global training quantile for phases with fewer than 30 samples)
+- Label: `late_risk = 1` if actual total days > Q75 within the trial's
+  **(phase, disease category)** cell, where disease category is the CCSR
+  domain (`ccsr_domain`, 21 body-system groups; unmapped trials use
+  `Other_Unclassified`). This prevents, e.g., a 10-year cardiovascular
+  Phase 3 trial from being flagged as "late" when long cardio durations
+  are expected.
+- Hierarchical fallback for sparse cells (default `--min-group-rows 30`):
+  `(phase, domain)` Q75 → phase Q75 → global Q75. Every cell records its
+  fallback source; the report prints the full per-group threshold table.
+- `--disease-axis none` reproduces the earlier phase-only label for A/B
+  comparison.
 
 ### Training Strategy
 
