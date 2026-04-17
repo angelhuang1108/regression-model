@@ -9,8 +9,9 @@ import pandas as pd
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
-RAW_DATA = PROJECT_ROOT / "raw_data"
-CLEAN_DATA = PROJECT_ROOT / "clean_data"
+DATA_ROOT = PROJECT_ROOT / "0_data"
+RAW_DATA = DATA_ROOT / "raw_data"
+CLEAN_DATA = DATA_ROOT / "clean_data"
 OUTPUT_DIR = CLEAN_DATA
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 

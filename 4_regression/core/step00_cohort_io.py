@@ -7,9 +7,9 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-CLEAN_DATA = PROJECT_ROOT / "clean_data"
-RAW_DATA = PROJECT_ROOT / "raw_data"
-CONDITION_FEATURES = PROJECT_ROOT / "2_condition_mapping" / "output" / "stage3_nct_features.csv"
+CLEAN_DATA = PROJECT_ROOT / "0_data" / "clean_data"
+RAW_DATA = PROJECT_ROOT / "0_data" / "raw_data"
+CONDITION_FEATURES = PROJECT_ROOT / "3_preprocessing" / "condition_mapping" / "output" / "stage3_nct_features.csv"
 
 
 def _parse_time_frame_days(tf: str) -> float | None:

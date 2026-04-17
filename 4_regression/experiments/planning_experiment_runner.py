@@ -138,7 +138,13 @@ def _write_experiment_summary(exp_dir: Path, log_path: Path) -> None:
     print(f"\nWrote {out}")
 
 
-def run_experiment(*, dry_run: bool, late_quantile: float) -> Path | None:
+def run_experiment(
+    *,
+    dry_run: bool,
+    late_quantile: float,
+    disease_axis: str = "ccsr_domain",
+    min_group_rows: int = 30,
+) -> Path | None:
     run_id = _utc_run_id()
     exp_dir = EXPERIMENTS_DIR / run_id
     log_path = exp_dir / "experiment.log"
@@ -202,6 +208,10 @@ def run_experiment(*, dry_run: bool, late_quantile: float) -> Path | None:
                 str(RANDOM_STATE),
                 "--late-quantile",
                 str(late_quantile),
+                "--disease-axis",
+                disease_axis,
+                "--min-group-rows",
+                str(min_group_rows),
             ],
         ),
         (
@@ -260,10 +270,32 @@ def main() -> None:
         default=0.75,
         help="Late-risk label quantile (passed to late_risk_classifier, default: 0.75)",
     )
+    p.add_argument(
+        "--disease-axis",
+        choices=("ccsr_domain", "none"),
+        default="ccsr_domain",
+        help=(
+            "Disease-category axis for late-risk stratified thresholds "
+            "(default: ccsr_domain; 'none' reproduces legacy phase-only labels)."
+        ),
+    )
+    p.add_argument(
+        "--min-group-rows",
+        type=int,
+        default=30,
+        help="Minimum train rows in a (phase, domain) cell before using its own Q (default: 30).",
+    )
     args = p.parse_args()
     if not (0.0 < args.late_quantile < 1.0):
         sys.exit("--late-quantile must be in (0, 1)")
-    run_experiment(dry_run=args.dry_run, late_quantile=args.late_quantile)
+    if args.min_group_rows < 1:
+        sys.exit("--min-group-rows must be >= 1")
+    run_experiment(
+        dry_run=args.dry_run,
+        late_quantile=args.late_quantile,
+        disease_axis=args.disease_axis,
+        min_group_rows=args.min_group_rows,
+    )
 
 
 if __name__ == "__main__":

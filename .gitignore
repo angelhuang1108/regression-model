@@ -6,8 +6,8 @@ clean_data/
 6_results/
 
 # Condition mapping — generated outputs (large CSVs, regenerate by running pipeline)
-2_condition_mapping/output/
-2_condition_mapping/cache/
+3_preprocessing/condition_mapping/output/
+3_preprocessing/condition_mapping/cache/
 
 # Exploration outputs
 2_data_exploration/outputs/

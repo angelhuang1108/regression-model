@@ -47,7 +47,20 @@ Reports include mixed-cohort baselines and summary tables; see `6_results/regres
 
 ## Late-risk classification
 
-**`4_regression/experiments/late_risk_classifier.py`** trains **`HistGradientBoostingClassifier`** (`class_weight='balanced'`) on **strict_planning** features with label derived from **total completion** duration vs per-phase training quantiles (see report header). Outputs classification metrics (precision, recall, F1, ROC-AUC, PR-AUC) on val/test.
+**`4_regression/experiments/late_risk_classifier.py`** trains **`HistGradientBoostingClassifier`** (`class_weight='balanced'`) on **strict_planning** features.
+
+**Label (disease-stratified).** `late_risk = 1` iff actual `total_completion` days exceed the training-split Q75 within the trial's **(phase, disease category)** cell. The disease category is the **CCSR domain** (`ccsr_domain` — 21 body-system categories such as `NEO`, `CIR`, `DIG`; trials without a CCSR mapping use `Other_Unclassified`). This follows the principle that a 10-year cardiovascular trial is not "late" — long cardio trials are expected — whereas a 4-year oncology trial may be.
+
+**Hierarchical fallback for sparse cells.** For any cell with fewer than `--min-group-rows` (default **30**) train rows, the classifier falls back to the phase-level Q75, and then to the global train Q75 if the phase itself is also sparse. Every (phase, domain) cell records which rule produced its threshold (`group | phase | global`); the report prints the full table.
+
+**Escape hatch for A/B comparison.** Pass `--disease-axis none` to reproduce the earlier phase-only label (single threshold per phase, same fallback to global for sparse phases). Useful for quantifying the impact of stratification in the final deck.
+
+Outputs:
+
+- `6_results/late_risk_classification_report.txt` — metrics plus the per-group threshold table.
+- `6_results/late_risk_predictions.csv` — per-trial columns include `disease_category`, `late_threshold_days`, `late_threshold_source`, `late_risk_true`, `late_risk_pred_proba`, `late_risk_pred`.
+
+Reported metrics (train / val / test): precision, recall, F1, ROC-AUC, PR-AUC, positive rate.
 
 ## Deviation and comparison
 
@@ -57,3 +70,26 @@ Reports include mixed-cohort baselines and summary tables; see `6_results/regres
 ## Metrics
 
 Regression: **RMSE**, **MAE**, **R²** on train / val / test as printed in each report. Classification: see late-risk report. For a single-command refresh of the default primary baseline report, run `python 4_regression/core/step03_train_regression.py` and open **`6_results/regression_report.txt`**.
+
+## Latest verified baseline results
+
+From the latest local run of:
+
+- `python 3_preprocessing/preprocess.py`
+- `python 4_regression/core/step03_train_regression.py`
+
+Snapshot:
+
+- Preprocessed filtered trials: **84,879**
+- Completed modeling cohort: **57,865**
+- Condition-mapping coverage in completed cohort (`has_ccsr=1`): **73.9%**
+
+Primary-completion test metrics (baseline feature policy):
+
+| Phase / route | Test n | R² | RMSE (days) | MAE (days) |
+|---|---:|---:|---:|---:|
+| PHASE1 (dedicated) | 4,293 | 0.6014 | 330 | 183 |
+| PHASE2 (dedicated) | 3,305 | 0.4234 | 479 | 322 |
+| PHASE3 (dedicated) | 3,093 | 0.4075 | 457 | 304 |
+| PHASE1/PHASE2 (early joint routing) | 640 | 0.3536 | 608 | 422 |
+| PHASE2/PHASE3 (late joint routing) | 216 | 0.2252 | 585 | 387 |

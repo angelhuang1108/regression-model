@@ -2,6 +2,10 @@
 
 Maps free-text disease condition labels from ClinicalTrials.gov (AACT) to ICD-10-CM codes and then to CCSR (Clinical Classifications Software Refined) disease categories. The output is a one-row-per-trial feature table used as input to the regression model.
 
+This module is part of **Stage 3 (Preprocessing)** in the project-level pipeline
+(`main.py`). It is kept in `2_condition_mapping/` for organization, but conceptually
+belongs to preprocessing/feature engineering (not exploratory analysis).
+
 **Source reference:** DXCCSR v2026-1 (AHRQ), 75,725 ICD-10-CM codes.
 
 ---
@@ -9,8 +13,8 @@ Maps free-text disease condition labels from ClinicalTrials.gov (AACT) to ICD-10
 ## Pipeline Overview
 
 ```
-raw_data/conditions_raw.csv          (filtered cohort: 93,701 trials)
-raw_data/browse_conditions.csv       (AACT MeSH terms: all AACT trials)
+0_data/raw_data/conditions_raw.csv   (filtered cohort: 93,701 trials)
+0_data/raw_data/browse_conditions.csv (AACT MeSH terms: all AACT trials)
          │
          ▼
 Step 00 — Exclusion Taxonomy         stage0_conditions.csv
@@ -34,7 +38,7 @@ Step 03 — CCSR Join                  stage3_with_ccsr.csv  (long form)
 ## Stage 0 — Exclusion Taxonomy
 
 **Script:** `step00_exclusion_taxonomy.py`  
-**Input:** `raw_data/conditions_raw.csv`  
+**Input:** `0_data/raw_data/conditions_raw.csv`  
 **Output:** `output/stage0_conditions.csv`
 
 Classifies every raw condition string into one of six buckets. Only the `disease` bucket proceeds to Stage 1. Buckets are checked in priority order — the first match wins.
@@ -62,7 +66,7 @@ Classifies every raw condition string into one of six buckets. Only the `disease
 ## Stage 1 — Normalization and Source Priority
 
 **Script:** `step01_normalize.py`  
-**Inputs:** `output/stage0_conditions.csv` (disease rows only), `raw_data/browse_conditions.csv` (MeSH-list terms)  
+**Inputs:** `output/stage0_conditions.csv` (disease rows only), `0_data/raw_data/browse_conditions.csv` (MeSH-list terms)  
 **Output:** `output/stage1_normalized.csv`
 
 Merges two condition sources, normalizes text, and assigns each trial up to 3 priority-ranked condition slots.
@@ -162,7 +166,7 @@ All Stage 1 columns are carried through, plus:
 ## Stage 2b — Coverage-Weighted Review Ranker
 
 **Script:** `step02b_coverage_review.py`  
-**Input:** `output/stage2_icd10.csv`, `raw_data/studies.csv`  
+**Input:** `output/stage2_icd10.csv`, `0_data/raw_data/studies.csv`  
 **Outputs:** `output/review_ranked.csv`, `output/review_top300.csv`, `output/review_quick_wins.csv`
 
 Ranks the manual review queue by expected impact on trial coverage.
@@ -187,7 +191,7 @@ Top 300 strings cover ~85,673 trials (51,230 currently zero-coverage).
 ## Stage 3 — CCSR Join
 
 **Script:** `step03_ccsr_join.py`  
-**Inputs:** `output/stage2_icd10.csv`, `raw_data/condition_mapping_data/DXCCSR_v2026-1.csv`  
+**Inputs:** `output/stage2_icd10.csv`, `0_data/raw_data/condition_mapping_data/DXCCSR_v2026-1.csv`  
 **Outputs:** `output/stage3_with_ccsr.csv` (long form), `output/stage3_nct_features.csv` (one row per trial)
 
 Joins each auto-accepted ICD-10 code to its CCSR category, then pivots to one row per trial with up to three CCSR condition slots.
@@ -256,7 +260,7 @@ The three CCSR slots are **compacted left**: within each trial, the slots are fi
 
 The `ccsr_domain` column is exposed as `category` in the feature matrix (21 levels including `Other_Unclassified`), replacing the former `categorized_output.csv` system.
 
-**Ablation result (test R², dedicated phase models):**
+**Ablation result (test R², dedicated phase models; historical experiment):**
 
 | Feature used as `category` | PHASE1 | PHASE2 | PHASE3 |
 |---|---|---|---|
@@ -266,13 +270,24 @@ The `ccsr_domain` column is exposed as `category` in the feature matrix (21 leve
 
 `ccsr_domain` outperforms `ccsr_slot1` on P1/P2 because the 300-code one-hot encoding is too sparse for HGBR — most codes appear in fewer than 50 trials. The coarser domain grouping generalizes better. `ccsr_slot1` and `ccsr_slot2`/`ccsr_slot3` are preserved in the feature table for future use with alternative encodings (target encoding, top-N truncation).
 
+> **Important comparability note:** these ablation values come from a prior
+> experiment setup and are not a direct apples-to-apples comparison with the
+> latest baseline report in `6_results/regression_report.txt`.
+>
+> Current baseline run snapshot (latest local execution):
+> - PHASE1 test R²: 0.6014
+> - PHASE2 test R²: 0.4234
+> - PHASE3 test R²: 0.4075
+> - Completed modeling cohort: 57,865
+> - Completed-cohort condition coverage (`has_ccsr=1`): 73.9%
+
 ---
 
 ## Future Improvements
 
 ### 1. Manual review of the ICD-10 queue
 
-**14,033 condition strings** remain in `manual_review_queue.csv` with confidence scores below the 0.65 auto-accept threshold. These strings cover a substantial portion of the trial universe. Resolving them increases CCSR coverage in the regression cohort (currently 73.9% of completed trials).
+**13,795 condition strings** remain in `manual_review_queue.csv` with confidence scores below the 0.65 auto-accept threshold (latest run). These strings cover a substantial portion of the trial universe. Resolving them increases CCSR coverage in the regression cohort (currently 73.9% of completed trials).
 
 The queue is pre-ranked by impact in `review_ranked.csv` and `review_top300.csv`. The top entries by priority:
 
@@ -285,7 +300,7 @@ The queue is pre-ranked by impact in `review_ranked.csv` and `review_top300.csv`
 
 **Priority action:** Resolve the top 300 strings in `review_top300.csv`. Each row has a `reviewer_code` column for the correct ICD-10 code and a `candidates_json` column with the top-5 TF-IDF candidates for reference. After review, run `step02c` (not yet written) to ingest overrides and re-run Stage 3.
 
-**2,416 strings** are within 0.10 of the auto-accept threshold (`review_quick_wins.csv`) — these are the cheapest to resolve since the TF-IDF match is likely already correct and needs only a human confirmation.
+**2,308 strings** are within 0.10 of the auto-accept threshold (`review_quick_wins.csv`) in the latest run — these are the cheapest to resolve since the TF-IDF match is likely already correct and needs only a human confirmation.
 
 ### 2. Write step02c — Reviewer override ingestion
 

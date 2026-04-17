@@ -112,6 +112,10 @@ merges eligibility features, and outputs:
 `sanity_check.py` reports descriptive statistics on duration distributions
 (min, max, mean, median, standard deviation, percentiles).
 
+Condition mapping is also part of preprocessing. The scripts in
+`3_preprocessing/condition_mapping/` generate `stage3_nct_features.csv` (ICD-10/CCSR-derived
+trial condition features), which are joined by `4_regression/core/step00_cohort_io.py`.
+
 ### Stage 4 — Regression (`4_regression/`)
 
 See [Modeling](#modeling) for details on algorithms and training strategy.
@@ -150,8 +154,17 @@ of `planning_experiment_runner.py`.
 **Classification (late-risk)**: `HistGradientBoostingClassifier`
 
 - `max_iter=200`, `random_state=42`, `class_weight="balanced"`
-- Label: `late_risk = 1` if actual total days > Q75 within phase
-  (falls back to global training quantile for phases with fewer than 30 samples)
+- Label: `late_risk = 1` if actual total days > Q75 within the trial's
+  **(phase, disease category)** cell, where disease category is the CCSR
+  domain (`ccsr_domain`, 21 body-system groups; unmapped trials use
+  `Other_Unclassified`). This prevents, e.g., a 10-year cardiovascular
+  Phase 3 trial from being flagged as "late" when long cardio durations
+  are expected.
+- Hierarchical fallback for sparse cells (default `--min-group-rows 30`):
+  `(phase, domain)` Q75 → phase Q75 → global Q75. Every cell records its
+  fallback source; the report prints the full per-group threshold table.
+- `--disease-axis none` reproduces the earlier phase-only label for A/B
+  comparison.
 
 ### Training Strategy
 
@@ -209,9 +222,21 @@ Two feature policies control which inputs are available at prediction time:
 
 | Phase | R² |
 |---|---|
-| Phase 1 | ~0.60 |
-| Phase 2 | ~0.42–0.43 |
-| Phase 3 | ~0.42–0.43 |
+| Phase 1 | 0.6014 |
+| Phase 2 | 0.4234 |
+| Phase 3 | 0.4075 |
+
+### Latest Verified Run Snapshot
+
+The following values are from the latest end-to-end execution in this repository
+(`3_preprocessing/preprocess.py` + `4_regression/core/step03_train_regression.py`):
+
+- Preprocessed trials after all filters: **84,879**
+- Modeling cohort (COMPLETED): **57,865**
+- Condition mapping join coverage in modeling cohort (`has_ccsr=1`): **73.9%**
+- Mixed-phase routing results:
+  - `PHASE1/PHASE2` (early joint): **R²=0.3536**, RMSE=608 days, MAE=422 days
+  - `PHASE2/PHASE3` (late joint): **R²=0.2252**, RMSE=585 days, MAE=387 days
 
 ### Deviation Metrics
 
@@ -324,6 +349,12 @@ python main.py --skip-download
 
 ```bash
 python 3_preprocessing/preprocess.py
+```
+
+### Condition mapping only (preprocessing subflow)
+
+```bash
+python 3_preprocessing/run_condition_mapping.py
 ```
 
 ### Regression training only

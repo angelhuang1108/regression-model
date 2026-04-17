@@ -2,7 +2,7 @@
 Stage 3 — CCSR Join
 
 Input:  2_condition_mapping/output/stage2_icd10.csv
-        raw_data/condition_mapping_data/DXCCSR_v2026-1.csv
+        0_data/raw_data/condition_mapping_data/DXCCSR_v2026-1.csv
 Output: 2_condition_mapping/output/stage3_with_ccsr.csv  — long form (one row per slot)
         2_condition_mapping/output/stage3_nct_features.csv — one row per nct_id (model input)
 
@@ -29,9 +29,9 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 STAGE2_OUT   = Path(__file__).parent / "output" / "stage2_icd10.csv"
-DXCCSR_PATH  = PROJECT_ROOT / "raw_data" / "condition_mapping_data" / "DXCCSR_v2026-1.csv"
+DXCCSR_PATH  = PROJECT_ROOT / "0_data" / "raw_data" / "condition_mapping_data" / "DXCCSR_v2026-1.csv"
 OUTPUT_LONG  = Path(__file__).parent / "output" / "stage3_with_ccsr.csv"
 OUTPUT_FEAT  = Path(__file__).parent / "output" / "stage3_nct_features.csv"
 

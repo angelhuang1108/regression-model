@@ -1,7 +1,7 @@
 """
 Stage 0 — Exclusion Taxonomy
 
-Input:  raw_data/conditions_raw.csv
+Input:  0_data/raw_data/conditions_raw.csv
 Output: 2_condition_mapping/output/stage0_conditions.csv
 
 Buckets (checked in priority order):
@@ -18,8 +18,8 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).parent.parent
-RAW_DATA = PROJECT_ROOT / "raw_data"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+RAW_DATA = PROJECT_ROOT / "0_data" / "raw_data"
 OUTPUT_DIR = Path(__file__).parent / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 

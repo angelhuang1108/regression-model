@@ -29,11 +29,11 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT_ROOT   = Path(__file__).parent.parent
+PROJECT_ROOT   = Path(__file__).resolve().parent.parent.parent
 REVIEW_FILE    = Path(__file__).parent / "output" / "manual_review_queue.csv"
 STAGE2_FILE    = Path(__file__).parent / "output" / "stage2_icd10.csv"
 STAGE3_FEAT    = Path(__file__).parent / "output" / "stage3_nct_features.csv"
-STUDIES_FILE   = PROJECT_ROOT / "raw_data" / "studies.csv"
+STUDIES_FILE   = PROJECT_ROOT / "0_data" / "raw_data" / "studies.csv"
 OUT_RANKED     = Path(__file__).parent / "output" / "review_ranked.csv"
 OUT_TOP300     = Path(__file__).parent / "output" / "review_top300.csv"
 OUT_QUICK_WINS = Path(__file__).parent / "output" / "review_quick_wins.csv"
