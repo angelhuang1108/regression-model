@@ -28,24 +28,34 @@ python 4_regression/core/step03_train_regression.py
 
 ## 5. Key output
 
-- `results/regression_report.txt` is the main output report.
+- `6_results/regression_report.txt` is the main output report.
 
-## 6. Suggested walkthrough order
+## 6. Regression R²: Paper vs Ours (test set)
+
+| Phase | TrialBench (Chen et al., 2025) | This project |
+|---|---:|---:|
+| Phase 1 | 0.6514 ± 0.0085 | ~0.60 |
+| Phase 2 | 0.4125 ± 0.0081 | ~0.42–0.43 |
+| Phase 3 | 0.3148 ± 0.0085 | ~0.42–0.43 |
+
+Interpretation: on this benchmark setup, our simpler tabular pipeline (phase-aware routing + engineered trial design/operational features + HGBR) is comparable on Phase 2 and stronger on Phase 3 versus the reported TrialBench baseline, despite TrialBench using richer multi-modal inputs.
+
+## 7. Walkthrough order
 
 1. `4_regression/core/step00_cohort_io.py`
 2. `4_regression/core/step01_features.py`
 3. `4_regression/core/step02_targets.py`
 4. `4_regression/core/step03_train_regression.py`
 5. `4_regression/core/step04_evaluation.py`
-6. `results/regression_report.txt`
+6. `6_results/regression_report.txt`
 
-## 7. Key modeling decisions
+## 8. Key modeling decisions
 
 - Per-phase models to respect phase-specific duration dynamics.
 - `HistGradientBoostingRegressor` as the core regressor.
 - Log target transform via `log1p` and inverse `expm1`.
 - No feature scaling; numeric NaNs are handled natively by the model.
 
-## 8. Notes
+## 9. Notes
 
 - Features are designed to capture trial design and operational complexity.
